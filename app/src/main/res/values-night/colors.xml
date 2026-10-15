@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="bar">#1B2927</color>
+    <color name="bg">#121615</color>
+    <color name="text_muted">#8C9792</color>
+    <color name="pill">#CC2A3532</color>
+    <color name="accent">#4DC3A8</color>
+</resources>
