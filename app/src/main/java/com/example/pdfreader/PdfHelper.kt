@@ -6,22 +6,28 @@ import java.io.File
 import java.io.FileOutputStream
 
 object PdfHelper {
-    fun getEditableUri(context: Context, uri: Uri): Uri {
-        // If it's already a file URI in our files dir, return it
-        if (uri.scheme == "file") return uri
-        
+    fun getEditableUri(context: Context, rawUri: Uri): Uri {
+        if (rawUri.scheme == "file") return rawUri
+
+        val fileName = "pdf_" + rawUri.toString().hashCode() + ".pdf"
+        val file = File(context.filesDir, fileName)
+
+        if (file.exists() && file.length() > 0) {
+            return Uri.fromFile(file)
+        }
+
         try {
-            // Create a local copy that androidx.pdf can edit directly without prompting
-            val file = File(context.filesDir, "working_copy.pdf")
-            context.contentResolver.openInputStream(uri)?.use { input ->
+            context.contentResolver.openInputStream(rawUri)?.use { input ->
                 FileOutputStream(file).use { output ->
                     input.copyTo(output)
                 }
             }
-            return Uri.fromFile(file)
+            if (file.exists() && file.length() > 0) {
+                return Uri.fromFile(file)
+            }
         } catch (e: Exception) {
             e.printStackTrace()
-            return uri
         }
+        return rawUri
     }
 }

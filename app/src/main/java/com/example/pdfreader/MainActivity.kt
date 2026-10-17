@@ -498,27 +498,55 @@ class MainActivity : AppCompatActivity(), ReaderPdfFragment.ViewportListener {
 
     private fun openPdf(rawUri: Uri) {
         savePosition()
-        
+
+        val fileUri = PdfHelper.getEditableUri(this, rawUri)
+
+        // Verify if the PDF is readable
+        val isReadable = try {
+            if (fileUri.scheme == "file") {
+                val f = java.io.File(fileUri.path ?: "")
+                f.exists() && f.length() > 0
+            } else {
+                contentResolver.openInputStream(fileUri)?.use { true } ?: false
+            }
+        } catch (_: Exception) {
+            false
+        }
+
+        if (!isReadable) {
+            showEmptyState()
+            return
+        }
+
         currentRawUri = rawUri
-        prefs.edit().putString("last_uri", rawUri.toString()).apply()
+        currentUri = fileUri
+        prefs.edit().putString("last_uri", fileUri.toString()).apply()
 
         val pdfName = displayName(rawUri)
-        val uri = PdfHelper.getEditableUri(this, rawUri)
-        currentUri = uri
 
         bookmarkedPage = prefs.getInt(bookmarkKey(rawUri), -1)
         val saved = prefs.getInt(positionKey(rawUri), 0)
         pendingScrollPage = if (saved > 0) saved else -1
+
         corner.visibility = View.GONE
         pageIndicator.visibility = View.GONE
         emptyState.visibility = View.GONE
+
         title.text = pdfName
         showTitle()
         updateMarkIcon()
         updateBookmarkRow()
-        fragment.documentUri = uri
-        startIndex(rawUri, uri, false)
+
+        fragment.documentUri = fileUri
+        startIndex(rawUri, fileUri, false)
         loadHighlights(rawUri)
+    }
+
+    private fun showEmptyState() {
+        emptyState.visibility = View.VISIBLE
+        title.visibility = View.GONE
+        pageIndicator.visibility = View.GONE
+        corner.visibility = View.GONE
     }
 
     private fun displayName(uri: Uri): String {
