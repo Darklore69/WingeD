@@ -1,7 +1,7 @@
 # WingeD PDF Reader
 
 A modern, fast, and feature-rich Android PDF reader app built with Kotlin, Jetpack libraries, AndroidX PDF Viewer, and PDFBox for Android.
-This project is inspired by a bookmark gifted by a friend <3
+-This project is inspired by a bookmark gifted by a friend <3
 ---
 
 ## Features
