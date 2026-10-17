@@ -23,6 +23,7 @@ android {
 
     buildTypes {
         release {
+            signingConfig = signingConfigs.getByName("debug")
             optimization {
                 enable = false
                 packageScope = setOf("androidx.**", "kotlin.**", "kotlinx.**")
@@ -39,6 +40,8 @@ android {
 }
 
 dependencies {
+    implementation("androidx.drawerlayout:drawerlayout:1.2.0")
+    implementation("com.tom-roush:pdfbox-android:2.0.27.0")
     implementation("androidx.pdf:pdf-viewer-fragment:1.0.0-alpha19")
     implementation("com.google.android.material:material:1.12.0")
     implementation("androidx.appcompat:appcompat:1.6.1")

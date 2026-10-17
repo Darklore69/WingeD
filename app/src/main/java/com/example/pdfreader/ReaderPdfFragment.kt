@@ -19,6 +19,10 @@ class ReaderPdfFragment : PdfViewerFragment() {
     override fun onPdfViewCreated(pdfView: PdfView) {
         super.onPdfViewCreated(pdfView)
         pdfViewRef = pdfView
+        
+        // Show built-in toolbox and FAB
+        isToolboxVisible = true
+        
         pdfView.addOnViewportChangedListener(object : PdfView.OnViewportChangedListener {
             override fun onViewportChanged(
                 firstVisiblePage: Int,
@@ -29,5 +33,7 @@ class ReaderPdfFragment : PdfViewerFragment() {
                 viewportListener?.onViewport(firstVisiblePage, pageLocations, pdfView.height)
             }
         })
+
+        (activity as? MainActivity)?.setupPdfViewSelectionMenu(pdfView)
     }
 }
