@@ -47,7 +47,10 @@ class MainActivity : AppCompatActivity(), ReaderPdfFragment.ViewportListener {
     private lateinit var corner: ImageView
     private lateinit var btnMark: ImageView
     private lateinit var title: TextView
-    private lateinit var emptyState: View
+    private lateinit var homeMenu: View
+    private lateinit var recentAdapter: RecentAdapter
+    private lateinit var loadingState: View
+    private lateinit var loadingIcon: ImageView
     private lateinit var pageIndicator: TextView
     private lateinit var highlightPalette: View
     private lateinit var btnClearHighlights: ImageView
@@ -135,8 +138,15 @@ class MainActivity : AppCompatActivity(), ReaderPdfFragment.ViewportListener {
         corner = findViewById(R.id.bookmarkCorner)
         btnMark = findViewById(R.id.btnMark)
         title = findViewById(R.id.title)
-        emptyState = findViewById(R.id.emptyState)
+        homeMenu = findViewById(R.id.homeMenu)
+        loadingState = findViewById(R.id.loadingState)
+        loadingIcon = findViewById(R.id.loadingIcon)
         pageIndicator = findViewById(R.id.pageIndicator)
+
+        val rvRecentPdfs = findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.rvRecentPdfs)
+        rvRecentPdfs.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this)
+        recentAdapter = RecentAdapter { uri -> openPdf(uri) }
+        rvRecentPdfs.adapter = recentAdapter
         highlightPalette = findViewById(R.id.highlightPalette)
         btnClearHighlights = findViewById(R.id.btnClearHighlights)
         indexStatus = findViewById(R.id.indexStatus)
@@ -229,6 +239,11 @@ class MainActivity : AppCompatActivity(), ReaderPdfFragment.ViewportListener {
             override fun handleOnBackPressed() {
                 if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
                     drawerLayout.closeDrawer(GravityCompat.START)
+                } else if (homeMenu.visibility != View.VISIBLE && currentRawUri != null) {
+                    savePosition()
+                    currentRawUri = null
+                    currentUri = null
+                    showHomeMenu()
                 } else {
                     isEnabled = false
                     onBackPressedDispatcher.onBackPressed()
@@ -271,10 +286,10 @@ class MainActivity : AppCompatActivity(), ReaderPdfFragment.ViewportListener {
         applyPdfInversion()
 
         val viewUri = if (intent?.action == Intent.ACTION_VIEW) intent.data else null
-        val lastUri = prefs.getString("last_uri", null)?.let { Uri.parse(it) }
-        when {
-            viewUri != null -> openPdf(viewUri)
-            lastUri != null -> openPdf(lastUri)
+        if (viewUri != null) {
+            openPdf(viewUri)
+        } else {
+            showHomeMenu()
         }
     }
 
@@ -499,54 +514,89 @@ class MainActivity : AppCompatActivity(), ReaderPdfFragment.ViewportListener {
     private fun openPdf(rawUri: Uri) {
         savePosition()
 
-        val fileUri = PdfHelper.getEditableUri(this, rawUri)
+        homeMenu.visibility = View.GONE
+        loadingState.visibility = View.VISIBLE
+        
+        val drawable = loadingIcon.drawable
+        if (drawable is android.graphics.drawable.Animatable) {
+            drawable.start()
+        }
 
-        // Verify if the PDF is readable
-        val isReadable = try {
-            if (fileUri.scheme == "file") {
-                val f = java.io.File(fileUri.path ?: "")
-                f.exists() && f.length() > 0
-            } else {
-                contentResolver.openInputStream(fileUri)?.use { true } ?: false
+        Thread {
+            val fileUri = PdfHelper.getEditableUri(this@MainActivity, rawUri)
+
+            // Verify if the PDF is readable
+            val isReadable = try {
+                if (fileUri.scheme == "file") {
+                    val f = java.io.File(fileUri.path ?: "")
+                    f.exists() && f.length() > 0
+                } else {
+                    contentResolver.openInputStream(fileUri)?.use { true } ?: false
+                }
+            } catch (_: Exception) {
+                false
             }
-        } catch (_: Exception) {
-            false
-        }
 
-        if (!isReadable) {
-            showEmptyState()
-            return
-        }
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                
+                if (drawable is android.graphics.drawable.Animatable) {
+                    drawable.stop()
+                }
+                
+                loadingState.visibility = View.GONE
+                
+                if (!isReadable) {
+                    showHomeMenu()
+                    return@runOnUiThread
+                }
 
-        currentRawUri = rawUri
-        currentUri = fileUri
-        prefs.edit().putString("last_uri", fileUri.toString()).apply()
+                currentRawUri = rawUri
+                currentUri = fileUri
+                prefs.edit().putString("last_uri", rawUri.toString()).apply()
 
-        val pdfName = displayName(rawUri)
+                val pdfName = displayName(rawUri)
+                saveRecentPdf(rawUri, pdfName)
 
-        bookmarkedPage = prefs.getInt(bookmarkKey(rawUri), -1)
-        val saved = prefs.getInt(positionKey(rawUri), 0)
-        pendingScrollPage = if (saved > 0) saved else -1
+                bookmarkedPage = prefs.getInt(bookmarkKey(rawUri), -1)
+                val saved = prefs.getInt(positionKey(rawUri), 0)
+                pendingScrollPage = if (saved > 0) saved else -1
 
-        corner.visibility = View.GONE
-        pageIndicator.visibility = View.GONE
-        emptyState.visibility = View.GONE
+                corner.visibility = View.GONE
+                pageIndicator.visibility = View.GONE
+                homeMenu.visibility = View.GONE
+                pdfContainer.visibility = View.VISIBLE
+                findViewById<View>(R.id.menuContainer).visibility = View.VISIBLE
 
-        title.text = pdfName
-        showTitle()
-        updateMarkIcon()
-        updateBookmarkRow()
+                title.text = pdfName
+                showTitle()
+                updateMarkIcon()
+                updateBookmarkRow()
 
-        fragment.documentUri = fileUri
-        startIndex(rawUri, fileUri, false)
-        loadHighlights(rawUri)
+                fragment.documentUri = fileUri
+                startIndex(rawUri, fileUri, false)
+                // Highlights will be loaded in onPdfLoaded() once the document is fully initialized
+            }
+        }.start()
     }
 
-    private fun showEmptyState() {
-        emptyState.visibility = View.VISIBLE
+    private fun showHomeMenu() {
+        homeMenu.visibility = View.VISIBLE
+        loadingState.visibility = View.GONE
         title.visibility = View.GONE
         pageIndicator.visibility = View.GONE
         corner.visibility = View.GONE
+        findViewById<View>(R.id.menuContainer).visibility = View.GONE
+        pdfContainer.visibility = View.GONE
+        
+        val homeSparkles = findViewById<ImageView>(R.id.homeSparkles)
+        val drawable = homeSparkles.drawable
+        if (drawable is android.graphics.drawable.Animatable) {
+            drawable.start()
+        }
+        
+        recentAdapter.items = loadRecentPdfs()
+        recentAdapter.notifyDataSetChanged()
     }
 
     private fun displayName(uri: Uri): String {
@@ -605,7 +655,18 @@ class MainActivity : AppCompatActivity(), ReaderPdfFragment.ViewportListener {
         val renderList = currentHighlights.map {
             androidx.pdf.Highlight(it.area, getHighlightColor(it.targetColor))
         }
-        fragment.pdfViewRef?.setHighlights(renderList)
+        try {
+            fragment.pdfViewRef?.setHighlights(renderList)
+        } catch (e: IllegalStateException) {
+            // pdfDocument not attached yet, retry in a moment
+            Handler(Looper.getMainLooper()).postDelayed({
+                try {
+                    fragment.pdfViewRef?.setHighlights(renderList)
+                } catch (_: Exception) {}
+            }, 300)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     fun loadHighlights(rawUri: Uri) {
@@ -940,6 +1001,13 @@ class MainActivity : AppCompatActivity(), ReaderPdfFragment.ViewportListener {
             corner.visibility = View.VISIBLE
         }
     }
+    
+    override fun onPdfLoaded() {
+        val rawUri = currentRawUri ?: return
+        runOnUiThread {
+            loadHighlights(rawUri)
+        }
+    }
 
     private fun toggleBookmark() {
         val rawUri = currentRawUri
@@ -981,6 +1049,67 @@ class MainActivity : AppCompatActivity(), ReaderPdfFragment.ViewportListener {
     override fun onPause() {
         super.onPause()
         savePosition()
+    }
+
+    data class RecentPdf(val uri: Uri, val name: String)
+
+    private fun loadRecentPdfs(): List<RecentPdf> {
+        val jsonStr = prefs.getString("recent_pdfs", "[]")
+        val list = mutableListOf<RecentPdf>()
+        try {
+            val array = org.json.JSONArray(jsonStr)
+            for (i in 0 until array.length()) {
+                val obj = array.getJSONObject(i)
+                val uriStr = obj.getString("uri")
+                val name = obj.getString("name")
+                list.add(RecentPdf(Uri.parse(uriStr), name))
+            }
+        } catch (e: Exception) { e.printStackTrace() }
+        return list
+    }
+
+    private fun saveRecentPdf(uri: Uri, name: String) {
+        val list = loadRecentPdfs().toMutableList()
+        list.removeAll { it.uri == uri }
+        list.add(0, RecentPdf(uri, name))
+        if (list.size > 10) {
+            list.removeAt(list.size - 1)
+        }
+        val array = org.json.JSONArray()
+        for (item in list) {
+            val obj = org.json.JSONObject()
+            obj.put("uri", item.uri.toString())
+            obj.put("name", item.name)
+            array.put(obj)
+        }
+        prefs.edit().putString("recent_pdfs", array.toString()).apply()
+        runOnUiThread {
+            if (::recentAdapter.isInitialized) {
+                recentAdapter.items = list
+                recentAdapter.notifyDataSetChanged()
+            }
+        }
+    }
+
+    private inner class RecentAdapter(val onClick: (Uri) -> Unit) : androidx.recyclerview.widget.RecyclerView.Adapter<RecentAdapter.VH>() {
+        var items = listOf<RecentPdf>()
+        
+        inner class VH(v: View): androidx.recyclerview.widget.RecyclerView.ViewHolder(v) {
+            val name: TextView = v.findViewById(R.id.recentPdfName)
+            init {
+                v.setOnClickListener { onClick(items[adapterPosition].uri) }
+            }
+        }
+        
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
+            return VH(layoutInflater.inflate(R.layout.item_recent_pdf, parent, false))
+        }
+        
+        override fun onBindViewHolder(holder: VH, position: Int) {
+            holder.name.text = items[position].name
+        }
+        
+        override fun getItemCount() = items.size
     }
 
     override fun dispatchTouchEvent(ev: android.view.MotionEvent): Boolean {

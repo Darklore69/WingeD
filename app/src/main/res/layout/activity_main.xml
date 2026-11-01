@@ -20,35 +20,38 @@
             android:layout_height="match_parent" />
 
         <LinearLayout
-            android:id="@+id/emptyState"
+            android:id="@+id/homeMenu"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:background="?attr/colorSurface"
             android:orientation="vertical"
-            android:gravity="center">
+            android:paddingTop="48dp"
+            android:visibility="gone">
 
             <ImageView
-                android:layout_width="96dp"
-                android:layout_height="96dp"
-                android:src="@drawable/ic_folder"
-                android:tint="?attr/colorOnSurfaceVariant"
-                android:alpha="0.5"
+                android:id="@+id/homeSparkles"
+                android:layout_width="72dp"
+                android:layout_height="72dp"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginBottom="16dp"
+                android:src="@drawable/sparkles"
                 android:contentDescription="@null" />
 
             <TextView
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:text="No PDF open"
-                android:textColor="?attr/colorOnSurface"
+                android:text="WingeD"
+                android:textColor="?attr/colorPrimary"
+                android:textSize="24sp"
                 android:fontFamily="sans-serif-medium"
-                android:textSize="20sp" />
+                android:gravity="center"
+                android:layout_marginBottom="24dp"/>
 
             <TextView
                 android:id="@+id/btnOpenEmpty"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="24dp"
+                android:layout_gravity="center_horizontal"
                 android:background="@drawable/bg_open_button"
                 android:paddingStart="32dp"
                 android:paddingEnd="32dp"
@@ -61,6 +64,51 @@
                 android:fontFamily="sans-serif-medium"
                 android:clickable="true"
                 android:focusable="true" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Recent PDFs"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="14sp"
+                android:fontFamily="sans-serif-medium"
+                android:paddingStart="24dp"
+                android:paddingTop="32dp"
+                android:paddingBottom="8dp"/>
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvRecentPdfs"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clipToPadding="false"
+                android:paddingBottom="24dp"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/loadingState"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="?attr/colorSurface"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:visibility="gone"
+            android:elevation="4dp">
+
+            <ImageView
+                android:id="@+id/loadingIcon"
+                android:layout_width="96dp"
+                android:layout_height="96dp"
+                android:src="@drawable/sparkles"
+                android:contentDescription="Loading" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="Opening PDF..."
+                android:textColor="?attr/colorOnSurface"
+                android:fontFamily="sans-serif-medium"
+                android:textSize="20sp" />
         </LinearLayout>
 
         <!-- Transparent Title at the top -->

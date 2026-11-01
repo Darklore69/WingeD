@@ -11,6 +11,7 @@ class ReaderPdfFragment : PdfViewerFragment() {
 
     interface ViewportListener {
         fun onViewport(firstVisible: Int, pageLocations: SparseArray<RectF>, viewHeight: Int)
+        fun onPdfLoaded()
     }
 
     var viewportListener: ViewportListener? = null
@@ -35,5 +36,10 @@ class ReaderPdfFragment : PdfViewerFragment() {
         })
 
         (activity as? MainActivity)?.setupPdfViewSelectionMenu(pdfView)
+    }
+
+    override fun onLoadDocumentSuccess(document: androidx.pdf.PdfDocument) {
+        super.onLoadDocumentSuccess(document)
+        viewportListener?.onPdfLoaded()
     }
 }
